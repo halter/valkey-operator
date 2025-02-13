@@ -80,16 +80,10 @@ spec:
                 default: cluster.local
                 description: Cluster Domain - used for DNS
                 type: string
-              containerBusPort:
-                default: 16379
-                description: Valkey container bus port
-                format: int32
-                type: integer
-              containerPort:
-                default: 6379
-                description: Valkey container port
-                format: int32
-                type: integer
+              clusterPreferredEndpointType:
+                default: hostname
+                description: Anonymous Auth
+                type: string
               exporterImage:
                 description: Exporter Image to use
                 type: string
@@ -218,16 +212,6 @@ spec:
                     - Proxy
                     type: string
                 type: object
-              hostBusPort:
-                default: 0
-                description: Valkey container bus port
-                format: int32
-                type: integer
-              hostPort:
-                default: 0
-                description: Valkey container port
-                format: int32
-                type: integer
               image:
                 description: Image to use
                 type: string
