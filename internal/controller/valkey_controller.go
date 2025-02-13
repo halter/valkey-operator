@@ -2125,9 +2125,9 @@ func (r *ValkeyReconciler) upsertStatefulSet(ctx context.Context, valkey *hyperv
 							Name:            Valkey,
 							ImagePullPolicy: "IfNotPresent",
 							Command: []string{
-								"valkey-server",
-								"/valkey/etc/valkey.conf",
-								"--protected-mode", "no",
+								"sh",
+								"-c",
+								`exec valkey-server /valkey/etc/valkey.conf --protected-mode no --cluster-announce-ip ${HOST_IP}`,
 							},
 							Env: []corev1.EnvVar{
 								{
@@ -2155,18 +2155,24 @@ func (r *ValkeyReconciler) upsertStatefulSet(ctx context.Context, valkey *hyperv
 									Value: tls,
 								},
 								{
-									Name:  "VALKEY_PORT_NUMBER",
-									Value: "6379",
+									Name: "HOST_IP",
+									ValueFrom: &corev1.EnvVarSource{
+										FieldRef: &corev1.ObjectFieldSelector{
+											FieldPath: "status.hostIP",
+										},
+									},
 								},
 							},
 							Ports: []corev1.ContainerPort{
 								{
 									Name:          "tcp-valkey",
-									ContainerPort: 6379,
+									ContainerPort: valkey.Spec.ContainerPort,
+									HostPort:      valkey.Spec.HostPort,
 								},
 								{
 									Name:          "tcp-valkey-bus",
-									ContainerPort: 16379,
+									ContainerPort: valkey.Spec.ContainerBusPort,
+									HostPort:      valkey.Spec.HostBusPort,
 								},
 							},
 							LivenessProbe: &corev1.Probe{
@@ -2376,6 +2382,12 @@ func (r *ValkeyReconciler) upsertStatefulSet(ctx context.Context, valkey *hyperv
 	}
 	if valkey.Spec.Prometheus {
 		sts.Spec.Template.Spec.Containers = append(sts.Spec.Template.Spec.Containers, r.exporter(valkey))
+	}
+	if len(valkey.Spec.Tolerations) > 0 {
+		sts.Spec.Template.Spec.Tolerations = valkey.Spec.Tolerations
+	}
+	if valkey.Spec.NodeSelector != nil {
+		sts.Spec.Template.Spec.NodeSelector = valkey.Spec.NodeSelector
 	}
 	if err := controllerutil.SetControllerReference(valkey, sts, r.Scheme); err != nil {
 		return err
