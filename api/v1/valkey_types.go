@@ -88,6 +88,10 @@ type ValkeySpec struct {
 
 	// Node Selector
 	NodeSelector map[string]string `json:"nodeSelector,omitempty"`
+
+	// Anonymous Auth
+	// +kubebuilder:default:="hostname"
+	ClusterPreferredEndpointType string `json:"clusterPreferredEndpointType,omitempty"`
 }
 
 // ExternalAccess defines the external access configuration
