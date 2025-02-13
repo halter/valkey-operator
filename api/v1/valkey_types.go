@@ -82,6 +82,16 @@ type ValkeySpec struct {
 
 	// Service Password
 	ServicePassword *corev1.SecretKeySelector `json:"servicePassword,omitempty"`
+
+	// Tolerations
+	Tolerations []corev1.Toleration `json:"tolerations,omitempty"`
+
+	// Node Selector
+	NodeSelector map[string]string `json:"nodeSelector,omitempty"`
+
+	// Which endpoint is shown as the preferred endpoint valid values are 'ip', 'hostname', or 'unknown-endpoint'.
+	// +kubebuilder:default:="hostname"
+	ClusterPreferredEndpointType string `json:"clusterPreferredEndpointType,omitempty"`
 }
 
 // ExternalAccess defines the external access configuration

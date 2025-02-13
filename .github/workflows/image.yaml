@@ -46,12 +46,12 @@ jobs:
       id: meta_sidecar
       uses: docker/metadata-action@369eb591f429131d6889c46b94e711f089e6ca96
       with:
-        images: ${{ env.REGISTRY }}/hyperspike/valkey-sidecar:${{ env.RELEASE_VERSION }}
+        images: ${{ env.REGISTRY }}/halter/valkey-sidecar:${{ env.RELEASE_VERSION }}
     - name: Extract metadata (Valkey tags, labels) for Docker
       id: meta_valkey
       uses: docker/metadata-action@369eb591f429131d6889c46b94e711f089e6ca96
       with:
-        images: ${{ env.REGISTRY }}/hyperspike/valkey:${{ env.VALKEY_VERSION }}
+        images: ${{ env.REGISTRY }}/halter/valkey:${{ env.VALKEY_VERSION }}
 
     - name: Setup Go ${{ matrix.go-version }}
       uses: actions/setup-go@v5
@@ -82,7 +82,7 @@ jobs:
         context: .
         push: true
         visibility: public
-        tags: ${{ env.REGISTRY }}/hyperspike/valkey-sidecar:${{ env.RELEASE_VERSION }}
+        tags: ${{ env.REGISTRY }}/halter/valkey-sidecar:${{ env.RELEASE_VERSION }}
         labels: ${{ steps.meta_sidecar.outputs.labels }}
     - name: Build and push Valkey image
       uses: docker/build-push-action@ca877d9245402d1537745e0e356eab47c3520991
@@ -92,7 +92,7 @@ jobs:
         context: .
         push: true
         visibility: public
-        tags: ${{ env.REGISTRY }}/hyperspike/valkey:${{ env.VALKEY_VERSION }}
+        tags: ${{ env.REGISTRY }}/halter/valkey:${{ env.VALKEY_VERSION }}
         labels: ${{ steps.meta_valkey.outputs.labels }}
 
     - name: Set up Cosign
@@ -103,10 +103,10 @@ jobs:
         cosign sign --yes ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ env.RELEASE_VERSION }}@${{ steps.docker_build_controller.outputs.digest }}
     - name: Sign Sidecar image with GitHub OIDC Token
       run: |
-        cosign sign --yes ${{ env.REGISTRY }}/hyperspike/valkey-sidecar:${{ env.RELEASE_VERSION }}@${{ steps.docker_build_sidecar.outputs.digest }}
+        cosign sign --yes ${{ env.REGISTRY }}/halter/valkey-sidecar:${{ env.RELEASE_VERSION }}@${{ steps.docker_build_sidecar.outputs.digest }}
     - name: Sign Valkey image with GitHub OIDC Token
       run: |
-        cosign sign --yes ${{ env.REGISTRY }}/hyperspike/valkey:${{ env.VALKEY_VERSION }}@${{ steps.docker_build_valkey.outputs.digest }}
+        cosign sign --yes ${{ env.REGISTRY }}/halter/valkey:${{ env.VALKEY_VERSION }}@${{ steps.docker_build_valkey.outputs.digest }}
 
     - name: Attest the Controller image
       uses: actions/attest-build-provenance@v2
@@ -119,14 +119,14 @@ jobs:
       uses: actions/attest-build-provenance@v2
       id: attest_sidecar
       with:
-        subject-name: ${{ env.REGISTRY }}/hyperspike/valkey-sidecar
+        subject-name: ${{ env.REGISTRY }}/halter/valkey-sidecar
         subject-digest: ${{ steps.docker_build_sidecar.outputs.digest }}
         push-to-registry: true
     - name: Attest the Valkey image
       uses: actions/attest-build-provenance@v2
       id: attest_valkey
       with:
-        subject-name: ${{ env.REGISTRY }}/hyperspike/valkey
+        subject-name: ${{ env.REGISTRY }}/halter/valkey
         subject-digest: ${{ steps.docker_build_valkey.outputs.digest }}
         push-to-registry: true
 

@@ -2377,6 +2377,12 @@ func (r *ValkeyReconciler) upsertStatefulSet(ctx context.Context, valkey *hyperv
 	if valkey.Spec.Prometheus {
 		sts.Spec.Template.Spec.Containers = append(sts.Spec.Template.Spec.Containers, r.exporter(valkey))
 	}
+	if len(valkey.Spec.Tolerations) > 0 {
+		sts.Spec.Template.Spec.Tolerations = valkey.Spec.Tolerations
+	}
+	if valkey.Spec.NodeSelector != nil {
+		sts.Spec.Template.Spec.NodeSelector = valkey.Spec.NodeSelector
+	}
 	if err := controllerutil.SetControllerReference(valkey, sts, r.Scheme); err != nil {
 		return err
 	}
