@@ -88,22 +88,6 @@ type ValkeySpec struct {
 
 	// Node Selector
 	NodeSelector map[string]string `json:"nodeSelector,omitempty"`
-
-	// Valkey container port
-	// +kubebuilder:default:=6379
-	ContainerPort int32 `json:"containerPort,omitempty"`
-
-	// Valkey container bus port
-	// +kubebuilder:default:=16379
-	ContainerBusPort int32 `json:"containerBusPort,omitempty"`
-
-	// Valkey container port
-	// +kubebuilder:default:=0
-	HostPort int32 `json:"hostPort,omitempty"`
-
-	// Valkey container bus port
-	// +kubebuilder:default:=0
-	HostBusPort int32 `json:"hostBusPort,omitempty"`
 }
 
 // ExternalAccess defines the external access configuration

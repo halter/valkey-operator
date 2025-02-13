@@ -19,7 +19,7 @@ metadata:
 data:
   nodes: "3"
   valkeyImage: "ghcr.io/halter/valkey:8.0.2"
-  exporterImage: "ghcr.io/halter/valkey-sidecar:v0.0.51"
+  exporterImage: "ghcr.io/halter/valkey-sidecar:v0.0.3"
 ---
 apiVersion: apps/v1
 kind: Deployment

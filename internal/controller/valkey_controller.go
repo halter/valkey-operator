@@ -2125,9 +2125,9 @@ func (r *ValkeyReconciler) upsertStatefulSet(ctx context.Context, valkey *hyperv
 							Name:            Valkey,
 							ImagePullPolicy: "IfNotPresent",
 							Command: []string{
-								"sh",
-								"-c",
-								`exec valkey-server /valkey/etc/valkey.conf --protected-mode no --cluster-announce-ip ${HOST_IP}`,
+								"valkey-server",
+								"/valkey/etc/valkey.conf",
+								"--protected-mode", "no",
 							},
 							Env: []corev1.EnvVar{
 								{
@@ -2155,24 +2155,18 @@ func (r *ValkeyReconciler) upsertStatefulSet(ctx context.Context, valkey *hyperv
 									Value: tls,
 								},
 								{
-									Name: "HOST_IP",
-									ValueFrom: &corev1.EnvVarSource{
-										FieldRef: &corev1.ObjectFieldSelector{
-											FieldPath: "status.hostIP",
-										},
-									},
+									Name:  "VALKEY_PORT_NUMBER",
+									Value: "6379",
 								},
 							},
 							Ports: []corev1.ContainerPort{
 								{
 									Name:          "tcp-valkey",
-									ContainerPort: valkey.Spec.ContainerPort,
-									HostPort:      valkey.Spec.HostPort,
+									ContainerPort: 6379,
 								},
 								{
 									Name:          "tcp-valkey-bus",
-									ContainerPort: valkey.Spec.ContainerBusPort,
-									HostPort:      valkey.Spec.HostBusPort,
+									ContainerPort: 16379,
 								},
 							},
 							LivenessProbe: &corev1.Probe{
