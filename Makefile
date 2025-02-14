@@ -1,5 +1,5 @@
 # Image URL to use all building/pushing image targets
-REGISTRY ?= ghcr.io/hyperspike
+REGISTRY ?= ghcr.io/halter
 IMG_CONTROLLER ?= $(REGISTRY)/valkey-operator:$(VERSION)
 IMG_SIDECAR ?= $(REGISTRY)/valkey-sidecar:$(VERSION)
 IMG_VALKEY ?= $(REGISTRY)/valkey:$(VALKEY_VERSION)
@@ -260,7 +260,7 @@ helm-package: helm-gen helm ## Package Helm chart
 	$Q$(HELM) package valkey-operator --app-version $(VERSION) --version $(VERSION)-chart
 
 helm-publish: helm-package ## Publish Helm chart
-	$Q$(HELM) push valkey-operator-$(VERSION)-chart.tgz oci://ghcr.io/hyperspike
+	$Q$(HELM) push valkey-operator-$(VERSION)-chart.tgz oci://ghcr.io/halter
 
 .PHONY: tunnel registry-proxy prometheus-proxy
 tunnel: ## turn on minikube's tunnel to test ingress and get UI access
