@@ -51,14 +51,14 @@ curl -sL https://github.com/hyperspike/valkey-operator/releases/download/$LATEST
 
 ```sh
 LATEST=$(curl -s https://api.github.com/repos/hyperspike/valkey-operator/releases/latest | jq -cr .tag_name)
-helm install valkey-operator --namespace valkey-operator-system --create-namespace oci://ghcr.io/hyperspike/valkey-operator --version ${LATEST}-chart
+helm install valkey-operator --namespace valkey-operator-system --create-namespace oci://ghcr.io/halter/valkey-operator --version ${LATEST}-chart
 ```
 
 ### Verifying the container image
 
 ```sh
 LATEST=$(curl -s https://api.github.com/repos/hyperspike/valkey-operator/releases/latest | jq -cr .tag_name)
-cosign verify ghcr.io/hyperspike/valkey-operator:$LATEST  --certificate-oidc-issuer https://token.actions.githubusercontent.com --certificate-identity https://github.com/hyperspike/valkey-operator/.github/workflows/image.yaml@refs/tags/$LATEST
+cosign verify ghcr.io/halter/valkey-operator:$LATEST  --certificate-oidc-issuer https://token.actions.githubusercontent.com --certificate-identity https://github.com/hyperspike/valkey-operator/.github/workflows/image.yaml@refs/tags/$LATEST
 ```
 
 ## Contributing
