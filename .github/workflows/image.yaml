@@ -79,6 +79,7 @@ jobs:
       id: go_build
       run: |
         platform=${{ matrix.platform }}
+        GOOS=${platform%/*} GOARCH=${platform#*/} go install ./...
         GOOS=${platform%/*} GOARCH=${platform#*/} make V=1
     - name: Build and push Docker image
       id: docker_build_controller
