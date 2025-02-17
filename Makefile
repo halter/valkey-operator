@@ -107,7 +107,7 @@ gosec: gosec-bin ## Run gosec scanner
 ##@ Build
 
 manager: manifests generate fmt vet ## Build manager binary.
-	$QCGO_ENABLED=0 GOOS=linux GOARCH=amd64 $(GO) build $(VV) \
+	$QCGO_ENABLED=0 $(GO) build $(VV) \
 		-trimpath \
 		-gcflags all="-N -l -trimpath=/src -trimpath=$(PWD)" \
 		-asmflags all="-trimpath=/src -trimpath=$(PWD)" \
@@ -117,7 +117,7 @@ manager: manifests generate fmt vet ## Build manager binary.
 		-o $@ ./cmd/manager/
 
 sidecar: manifests generate fmt vet ## Build sidecar binary.
-	$QCGO_ENABLED=0 GOOS=linux GOARCH=amd64 $(GO) build $(VV) \
+	$QCGO_ENABLED=0 $(GO) build $(VV) \
 		-trimpath \
 		-gcflags all="-N -l -trimpath=/src -trimpath=$(PWD)" \
 		-asmflags all="-trimpath=/src -trimpath=$(PWD)" \
