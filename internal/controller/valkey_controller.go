@@ -630,6 +630,8 @@ func (r *ValkeyReconciler) initCluster(ctx context.Context, valkey *hyperv1.Valk
 	idx := 0
 	nodeIndexes := []int{}
 	for i := 0; i < int(valkey.Spec.Shards); i++ {
+		nodeIndexes = append(nodeIndexes, idx)
+		idx++
 		for j := 0; j < int(valkey.Spec.Replicas); j++ {
 			nodeIndexes = append(nodeIndexes, idx)
 			idx++
