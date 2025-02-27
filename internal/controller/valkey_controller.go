@@ -626,10 +626,31 @@ func (r *ValkeyReconciler) initCluster(ctx context.Context, valkey *hyperv1.Valk
 			}
 		}
 	}
+
+	idx := 0
+	nodeIndexes := []int{}
+	for i := 0; i < int(valkey.Spec.Shards); i++ {
+		for j := 0; j < int(valkey.Spec.Replicas); j++ {
+			nodeIndexes = append(nodeIndexes, idx)
+			idx++
+		}
+	}
+	slaveIndexes := nodeIndexes[int(valkey.Spec.Shards):]
+
+	chunkBy := func(items []int, chunkSize int) [][]int {
+		var _chunks = make([][]int, 0, (len(items)/chunkSize)+1)
+		for chunkSize < len(items) {
+			items, _chunks = items[chunkSize:], append(_chunks, items[0:chunkSize:chunkSize])
+		}
+		return append(_chunks, items)
+	}
+
+	slaveChunks := chunkBy(slaveIndexes, int(valkey.Spec.Replicas))
+
 	// set cluster replicate
 	// 0 -> (shards - 1) are masters
 	// shards -> replicas*shards-1 are slaves
-	for i := 0; i < int(valkey.Spec.Shards); i++ {
+	for i, slaves := range slaveChunks {
 		masterID := ""
 		clusterNodesStr, err := clients[podNames[i]].Do(ctx, clients[podNames[i]].B().ClusterNodes().Build()).ToString()
 		if err != nil {
@@ -643,8 +664,8 @@ func (r *ValkeyReconciler) initCluster(ctx context.Context, valkey *hyperv1.Valk
 
 		}
 
-		for j := 0; j < int(valkey.Spec.Replicas); j++ {
-			replica := podNames[(i+1)*int(valkey.Spec.Shards)+j]
+		for _, j := range slaves {
+			replica := podNames[j]
 			logger.Info("setting cluster replicate", "shard", i, "masterID", masterID, "replica", replica)
 			if err := clients[replica].Do(ctx, clients[replica].B().ClusterReplicate().NodeId(masterID).Build()).Error(); err != nil {
 				logger.Error(err, "failed to replicate", "master", masterID, "replica", replica)
