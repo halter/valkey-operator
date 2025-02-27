@@ -626,6 +626,31 @@ func (r *ValkeyReconciler) initCluster(ctx context.Context, valkey *hyperv1.Valk
 			}
 		}
 	}
+	// set cluster replicate
+	// 0 -> (shards - 1) are masters
+	// shards -> replicas*shards-1 are slaves
+	for i := 0; i < int(valkey.Spec.Shards); i++ {
+		masterID := ""
+		clusterNodesStr, err := clients[podNames[i]].Do(ctx, clients[podNames[i]].B().ClusterNodes().Build()).ToString()
+		if err != nil {
+			logger.Error(err, "failed to get cluster nodes")
+			return err
+		}
+		for _, line := range strings.Split(clusterNodesStr, "\n") {
+			if strings.Contains(line, "myself") {
+				masterID = strings.Split(line, " ")[0]
+			}
+
+		}
+
+		for j := 0; j < int(valkey.Spec.Replicas); j++ {
+			replica := podNames[i*int(valkey.Spec.Shards)+j]
+			if err := clients[replica].Do(ctx, clients[replica].B().ClusterReplicate().NodeId(masterID).Build()).Error(); err != nil {
+				logger.Error(err, "failed to replicate", "master", masterID, "replica", replica)
+				return err
+			}
+		}
+	}
 
 	return nil
 }
