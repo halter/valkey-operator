@@ -650,7 +650,7 @@ func (r *ValkeyReconciler) initCluster(ctx context.Context, valkey *hyperv1.Valk
 	}
 
 	slaveChunks := chunkBy(slaveIndexes, int(valkey.Spec.Replicas))
-	logger.Info("slaveChunks", slaveChunks)
+	logger.Info("getting slave chunks", "slaveChunks", slaveChunks)
 
 	// set cluster replicate
 	// 0 -> (shards - 1) are masters
