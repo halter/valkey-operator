@@ -28,6 +28,7 @@ import (
 	"math/big"
 	"net"
 	"os"
+	"sort"
 	"strconv"
 	"strings"
 	"text/template"
@@ -461,6 +462,7 @@ func (r *ValkeyReconciler) getPodNames(ctx context.Context, valkey *hyperv1.Valk
 	for _, pod := range pods.Items {
 		names = append(names, pod.Name+"."+valkey.Name+"-headless."+valkey.Namespace+".svc")
 	}
+	sort.Strings(names)
 	return names, nil
 }
 
@@ -648,12 +650,15 @@ func (r *ValkeyReconciler) initCluster(ctx context.Context, valkey *hyperv1.Valk
 	}
 
 	slaveChunks := chunkBy(slaveIndexes, int(valkey.Spec.Replicas))
+	logger.Info("slaveChunks", slaveChunks)
 
 	// set cluster replicate
 	// 0 -> (shards - 1) are masters
 	// shards -> replicas*shards-1 are slaves
 	for i, slaves := range slaveChunks {
 		masterID := ""
+		masterPodName := podNames[i]
+		logger.Info("setting cluster replicate", "shard", i, "masterPodName", masterPodName)
 		clusterNodesStr, err := clients[podNames[i]].Do(ctx, clients[podNames[i]].B().ClusterNodes().Build()).ToString()
 		if err != nil {
 			logger.Error(err, "failed to get cluster nodes")
@@ -668,7 +673,7 @@ func (r *ValkeyReconciler) initCluster(ctx context.Context, valkey *hyperv1.Valk
 
 		for _, j := range slaves {
 			replica := podNames[j]
-			logger.Info("setting cluster replicate", "shard", i, "masterID", masterID, "replica", replica)
+			logger.Info("setting cluster replicate", "shard", i, "replica index", j, "masterID", masterID, "replica", replica)
 			if err := clients[replica].Do(ctx, clients[replica].B().ClusterReplicate().NodeId(masterID).Build()).Error(); err != nil {
 				logger.Error(err, "failed to replicate", "master", masterID, "replica", replica)
 				return err
