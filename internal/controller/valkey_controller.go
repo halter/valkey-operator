@@ -1623,7 +1623,7 @@ func (r *ValkeyReconciler) balanceNodes(ctx context.Context, valkey *hyperv1.Val
 	pods := map[string]string{}
 	var tries int
 	for {
-		if len(pods) != int(valkey.Spec.Shards) {
+		if len(pods) != int(valkey.Spec.Shards+valkey.Spec.Shards*valkey.Spec.Replicas) {
 			pods, err = r.getPodIPs(ctx, valkey)
 			if err != nil {
 				logger.Error(err, "failed to get pod ips")
