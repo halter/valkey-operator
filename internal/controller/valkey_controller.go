@@ -661,7 +661,7 @@ func (r *ValkeyReconciler) initCluster(ctx context.Context, valkey *hyperv1.Valk
 		}
 		for _, line := range strings.Split(clusterNodesStr, "\n") {
 			if strings.Contains(line, "myself") {
-				masterID = strings.Split(line, " ")[0]
+				masterID = strings.ReplaceAll(strings.Split(line, " ")[0], "txt:", "")
 			}
 
 		}
