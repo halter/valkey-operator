@@ -644,7 +644,8 @@ func (r *ValkeyReconciler) initCluster(ctx context.Context, valkey *hyperv1.Valk
 		}
 
 		for j := 0; j < int(valkey.Spec.Replicas); j++ {
-			replica := podNames[i*int(valkey.Spec.Shards)+j]
+			replica := podNames[(i+1)*int(valkey.Spec.Shards)+j]
+			logger.Info("setting cluster replicate", "shard", i, "masterID", masterID, "replica", replica)
 			if err := clients[replica].Do(ctx, clients[replica].B().ClusterReplicate().NodeId(masterID).Build()).Error(); err != nil {
 				logger.Error(err, "failed to replicate", "master", masterID, "replica", replica)
 				return err
