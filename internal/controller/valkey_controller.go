@@ -28,6 +28,7 @@ import (
 	"math/big"
 	"net"
 	"os"
+	"sort"
 	"strconv"
 	"strings"
 	"text/template"
@@ -461,6 +462,7 @@ func (r *ValkeyReconciler) getPodNames(ctx context.Context, valkey *hyperv1.Valk
 	for _, pod := range pods.Items {
 		names = append(names, pod.Name+"."+valkey.Name+"-headless."+valkey.Namespace+".svc")
 	}
+	sort.Strings(names)
 	return names, nil
 }
 
@@ -627,7 +629,112 @@ func (r *ValkeyReconciler) initCluster(ctx context.Context, valkey *hyperv1.Valk
 		}
 	}
 
+	// ok, now we need to setup replicas.
+	// First, lets check which nodes have slots assigned, those should be the masters, lets assert that the shard count matches this
+	clusterNodes, err := r.buildClusterNodeInfo(ctx, clients)
+	if err != nil {
+		logger.Error(err, "failed to get cluster nodes")
+		return err
+	}
+
+	masterCount := 0
+	for _, node := range clusterNodes {
+		for _, flag := range node.Flags {
+			if flag == "master" {
+				masterCount++
+			}
+		}
+	}
+	if masterCount != int(valkey.Spec.Shards) {
+		logger.Info("master count does not match shard count", "masterCount", masterCount, "shardCount", valkey.Spec.Shards)
+		if masterCount < int(valkey.Spec.Shards) {
+			return fmt.Errorf("master count is less than shard count, cannot be reconciled")
+		}
+
+		// we need to configure replicas
+		// first, we need to get the nodes with slot assignments
+		masterNodes := []ClusterNode{}
+		slaveNodes := []ClusterNode{}
+		for _, node := range clusterNodes {
+			if node.SlotRange != "" {
+				masterNodes = append(masterNodes, node)
+			} else {
+				slaveNodes = append(slaveNodes, node)
+			}
+		}
+		logger.Info("master nodes", "masterNodes", masterNodes)
+		logger.Info("slave nodes", "slaveNodes", slaveNodes)
+
+		if len(slaveNodes) != int(valkey.Spec.Shards)*int(valkey.Spec.Replicas) {
+			logger.Info("slave count does not match shard*replica count", "slaveCount", len(slaveNodes), "shardCount", valkey.Spec.Shards, "replicaCount", valkey.Spec.Replicas)
+			return fmt.Errorf("slave count does not match shard*replica count")
+		}
+
+		chunkBy := func(items []ClusterNode, chunkSize int) (chunks [][]ClusterNode) {
+			for chunkSize < len(items) {
+				items, chunks = items[chunkSize:], append(chunks, items[0:chunkSize:chunkSize])
+			}
+			return append(chunks, items)
+		}
+		slaveChunks := chunkBy(slaveNodes, int(valkey.Spec.Replicas))
+		for i, chunk := range slaveChunks {
+			for _, slave := range chunk {
+				if err := clients[slave.PodName].Do(ctx, clients[slave.PodName].B().ClusterReplicate().NodeId(masterNodes[i].ID).Build()).Error(); err != nil {
+					logger.Error(err, "failed to replicate", "master", masterNodes[i].ID, "replica", slave.ID)
+					return err
+				}
+			}
+		}
+	} else {
+		logger.Info("master count matches shard count")
+	}
+
 	return nil
+}
+
+// https://valkey.io/commands/cluster-nodes/
+type ClusterNode struct {
+	PodName   string
+	ID        string
+	Flags     []string
+	SlotRange string
+}
+
+func (r *ValkeyReconciler) buildClusterNodeInfo(ctx context.Context, clients map[string]valkeyClient.Client) ([]ClusterNode, error) {
+	results := []ClusterNode{}
+
+	logger := log.FromContext(ctx)
+	for podName, client := range clients {
+		clusterNodesStr, err := client.Do(ctx, client.B().ClusterNodes().Build()).ToString()
+		if err != nil {
+			logger.Error(err, "failed to get cluster")
+			return nil, err
+		}
+		for _, line := range strings.Split(clusterNodesStr, "\n") {
+			if strings.Contains(line, "myself") {
+				strings.Fields(line)
+				fields := strings.Fields(line)
+				flagsWithoutMyself := []string{}
+				flags := strings.Split(fields[2], ",")
+				for _, flag := range flags {
+					if flag != "myself" {
+						flagsWithoutMyself = append(flagsWithoutMyself, flag)
+					}
+				}
+				slotRange := ""
+				if len(fields) > 8 {
+					slotRange = fields[8]
+				}
+				results = append(results, ClusterNode{
+					PodName:   podName,
+					ID:        strings.ReplaceAll(fields[0], "txt:", ""),
+					Flags:     flagsWithoutMyself,
+					SlotRange: slotRange,
+				})
+			}
+		}
+	}
+	return results, nil
 }
 
 func (r *ValkeyReconciler) setClusterAnnounceIp(ctx context.Context, valkey *hyperv1.Valkey) error {
@@ -1598,7 +1705,7 @@ func (r *ValkeyReconciler) balanceNodes(ctx context.Context, valkey *hyperv1.Val
 	pods := map[string]string{}
 	var tries int
 	for {
-		if len(pods) != int(valkey.Spec.Shards) {
+		if len(pods) != int(valkey.Spec.Shards+valkey.Spec.Shards*valkey.Spec.Replicas) {
 			pods, err = r.getPodIPs(ctx, valkey)
 			if err != nil {
 				logger.Error(err, "failed to get pod ips")
