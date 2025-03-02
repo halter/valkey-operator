@@ -2253,9 +2253,9 @@ func (r *ValkeyReconciler) upsertStatefulSet(ctx context.Context, valkey *hyperv
 							Name:            Valkey,
 							ImagePullPolicy: "IfNotPresent",
 							Command: []string{
-								"valkey-server",
-								"/valkey/etc/valkey.conf",
-								"--protected-mode", "no",
+								"sh",
+								"-c",
+								"exec valkey-server /valkey/etc/valkey.conf --protected-mode no --cluster-announce-ip $POD_IP",
 							},
 							Env: []corev1.EnvVar{
 								{
@@ -2285,6 +2285,14 @@ func (r *ValkeyReconciler) upsertStatefulSet(ctx context.Context, valkey *hyperv
 								{
 									Name:  "VALKEY_PORT_NUMBER",
 									Value: "6379",
+								},
+								{
+									Name: "POD_IP",
+									ValueFrom: &corev1.EnvVarSource{
+										FieldRef: &corev1.ObjectFieldSelector{
+											FieldPath: "status.podIP",
+										},
+									},
 								},
 							},
 							Ports: []corev1.ContainerPort{
