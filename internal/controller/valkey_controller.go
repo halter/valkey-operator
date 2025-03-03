@@ -28,6 +28,7 @@ import (
 	"math/big"
 	"net"
 	"os"
+	"reflect"
 	"sort"
 	"strconv"
 	"strings"
@@ -2181,6 +2182,51 @@ func (r *ValkeyReconciler) upsertStatefulSet(ctx context.Context, valkey *hyperv
 	if valkey.Spec.Image != "" {
 		image = valkey.Spec.Image
 	}
+
+	podEnv := []corev1.EnvVar{
+		{
+			Name: "POD_NAME",
+			ValueFrom: &corev1.EnvVarSource{
+				FieldRef: &corev1.ObjectFieldSelector{
+					FieldPath: "metadata.name",
+				},
+			},
+		},
+		{
+			Name:  "VALKEY_NODES",
+			Value: getNodeNames(valkey),
+		},
+		{
+			Name:  "VALKEY_CLUSTER_PREFERRED_ENDPOINT_TYPE",
+			Value: endpointType,
+		},
+		{
+			Name:  "VALKEY_AOF_ENABLED",
+			Value: "yes",
+		},
+		{
+			Name:  "VALKEY_TLS_ENABLED",
+			Value: tls,
+		},
+		{
+			Name:  "VALKEY_PORT_NUMBER",
+			Value: "6379",
+		},
+		{
+			Name: "POD_IP",
+			ValueFrom: &corev1.EnvVarSource{
+				FieldRef: &corev1.ObjectFieldSelector{
+					FieldPath: "status.podIP",
+				},
+			},
+		},
+	}
+	podCommand := []string{
+		"sh",
+		"-c",
+		"exec valkey-server /valkey/etc/valkey.conf --protected-mode no --cluster-announce-ip $POD_IP",
+	}
+
 	sts := &appsv1.StatefulSet{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      valkey.Name,
@@ -2252,49 +2298,8 @@ func (r *ValkeyReconciler) upsertStatefulSet(ctx context.Context, valkey *hyperv
 							},
 							Name:            Valkey,
 							ImagePullPolicy: "IfNotPresent",
-							Command: []string{
-								"sh",
-								"-c",
-								"exec valkey-server /valkey/etc/valkey.conf --protected-mode no --cluster-announce-ip $POD_IP",
-							},
-							Env: []corev1.EnvVar{
-								{
-									Name: "POD_NAME",
-									ValueFrom: &corev1.EnvVarSource{
-										FieldRef: &corev1.ObjectFieldSelector{
-											FieldPath: "metadata.name",
-										},
-									},
-								},
-								{
-									Name:  "VALKEY_NODES",
-									Value: getNodeNames(valkey),
-								},
-								{
-									Name:  "VALKEY_CLUSTER_PREFERRED_ENDPOINT_TYPE",
-									Value: endpointType,
-								},
-								{
-									Name:  "VALKEY_AOF_ENABLED",
-									Value: "yes",
-								},
-								{
-									Name:  "VALKEY_TLS_ENABLED",
-									Value: tls,
-								},
-								{
-									Name:  "VALKEY_PORT_NUMBER",
-									Value: "6379",
-								},
-								{
-									Name: "POD_IP",
-									ValueFrom: &corev1.EnvVarSource{
-										FieldRef: &corev1.ObjectFieldSelector{
-											FieldPath: "status.podIP",
-										},
-									},
-								},
-							},
+							Command:         podCommand,
+							Env:             podEnv,
 							Ports: []corev1.ContainerPort{
 								{
 									Name:          "tcp-valkey",
@@ -2570,6 +2575,15 @@ func (r *ValkeyReconciler) upsertStatefulSet(ctx context.Context, valkey *hyperv
 			return err
 		}
 		r.Recorder.Event(valkey, "Normal", "Updated", fmt.Sprintf("StatefulSet %s/%s is updated (exporter image)", valkey.Namespace, valkey.Name))
+	}
+	if !reflect.DeepEqual(sts.Spec.Template.Spec.Containers[0].Command, podCommand) || !reflect.DeepEqual(sts.Spec.Template.Spec.Containers[0].Env, podEnv) {
+		sts.Spec.Template.Spec.Containers[0].Command = podCommand
+		sts.Spec.Template.Spec.Containers[0].Env = podEnv
+		if err := r.Update(ctx, sts); err != nil {
+			logger.Error(err, "failed to update statefulset command/env")
+			return err
+		}
+		r.Recorder.Event(valkey, "Normal", "Updated", fmt.Sprintf("StatefulSet %s/%s is updated (command/env)", valkey.Namespace, valkey.Name))
 	}
 
 	return nil
