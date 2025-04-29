@@ -390,6 +390,11 @@ func (r *ValkeyReconciler) upsertConfigMap(ctx context.Context, valkey *hyperv1.
 		logger.Error(err, "failed to read ping_liveness_local.sh")
 		return err
 	}
+	preStop, err := scripts.ReadFile("scripts/pre_stop.sh")
+	if err != nil {
+		logger.Error(err, "failed to read pre_stop.sh")
+		return err
+	}
 	cm := &corev1.ConfigMap{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      valkey.Name,
@@ -400,6 +405,7 @@ func (r *ValkeyReconciler) upsertConfigMap(ctx context.Context, valkey *hyperv1.
 			"valkey.conf":             conf.String(),
 			"ping_readiness_local.sh": string(pingReadinessLocal),
 			"ping_liveness_local.sh":  string(pingLivenessLocal),
+			"pre_stop.sh":             string(preStop),
 		},
 	}
 	if valkey.Spec.TLS {
@@ -2338,6 +2344,17 @@ func (r *ValkeyReconciler) upsertStatefulSet(ctx context.Context, valkey *hyperv
 											"sh",
 											"-c",
 											"/scripts/ping_readiness_local.sh 1",
+										},
+									},
+								},
+							},
+							Lifecycle: &corev1.Lifecycle{
+								PreStop: &corev1.LifecycleHandler{
+									Exec: &corev1.ExecAction{
+										Command: []string{
+											"sh",
+											"-c",
+											"/scripts/pre_stop.sh",
 										},
 									},
 								},
