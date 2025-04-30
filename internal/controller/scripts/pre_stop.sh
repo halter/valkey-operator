@@ -29,4 +29,18 @@ echo "Pause writes"
 valkey-cli -c CLIENT PAUSE "5000" WRITE
 
 valkey-cli -h "${SLAVE_IP}" -p "${SLAVE_PORT}" -c cluster failover
-sleep 3s
+
+check_failover_complete() {
+	ROLE=$(valkey-cli -h "${SLAVE_IP}" -p "${SLAVE_PORT}" INFO REPLICATION | grep role | cut -d':' -f2 | tr -d '\r')
+	if [ "${ROLE}" = "master" ]; then
+		return 0
+	else
+		return 1
+	fi
+}
+
+echo "Waiting for failover to complete..."
+while ! check_failover_complete; do
+	echo "Failover in progress, waiting..."
+	sleep 1
+done
